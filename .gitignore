@@ -1,0 +1,24 @@
+# Dependencies - never commit these
+node_modules/
+server/node_modules/
+client/node_modules/
+
+# Environment - NEVER commit, contains secrets
+server/.env
+
+# Database files - contain user data
+server/data/*.db
+
+# Uploaded encrypted files
+server/uploads/*.enc
+server/uploads/temp_*
+
+# Build output
+client/dist/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
