@@ -12,7 +12,7 @@ function requireAuth(req, res, next) {
   next();
 }
 function requireOwner(req, res, next) {
-  if (!req.user)        return res.status(401).json({ error: 'Not authenticated' });
+  if (!req.user)         return res.status(401).json({ error: 'Not authenticated' });
   if (!req.user.isOwner) return res.status(403).json({ error: 'Owner access only' });
   next();
 }
@@ -30,9 +30,9 @@ function decryptFile(encryptedPath) {
 // ── GET /api/queue/pending — owner sees FIFO queue ─────────
 router.get('/pending', requireOwner, async (req, res) => {
   try {
-    const jobs = await db.jobs
-      .find({ status: { $in: ['pending', 'printing'] } })
-      .sort({ uploadedAt: 1 });   // FIFO: oldest first
+    // Fetch all pending/printing jobs then sort in JS (nedb-promises safe)
+    const allJobs = await db.jobs.find({ status: { $in: ['pending', 'printing'] } });
+    const jobs = allJobs.sort((a, b) => new Date(a.uploadedAt) - new Date(b.uploadedAt));
 
     res.json(jobs.map(j => ({
       jobId:        j.jobId,
@@ -46,6 +46,7 @@ router.get('/pending', requireOwner, async (req, res) => {
       uploadedAt:   j.uploadedAt
     })));
   } catch (err) {
+    console.error('Pending queue error:', err.message);
     res.status(500).json({ error: 'Failed to fetch queue' });
   }
 });
@@ -53,12 +54,14 @@ router.get('/pending', requireOwner, async (req, res) => {
 // ── GET /api/queue/completed — last 20 completed jobs ──────
 router.get('/completed', requireOwner, async (req, res) => {
   try {
-    const jobs = await db.jobs
-      .find({ status: 'done' })
-      .sort({ completedAt: -1 })
-      .limit(20);
+    // Fetch all done jobs, sort by completedAt descending in JS, take top 20
+    const allDone = await db.jobs.find({ status: 'done' });
+    const jobs = allDone
+      .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
+      .slice(0, 20);
     res.json(jobs);
   } catch (err) {
+    console.error('Completed jobs error:', err.message);
     res.status(500).json({ error: 'Failed to fetch completed jobs' });
   }
 });
@@ -73,6 +76,7 @@ router.get('/stats', requireOwner, async (req, res) => {
     ]);
     res.json({ pending, printing, done });
   } catch (err) {
+    console.error('Stats error:', err.message);
     res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });
@@ -94,6 +98,7 @@ router.get('/download/:jobId', requireOwner, async (req, res) => {
     const mimeMap = {
       pdf:  'application/pdf',
       jpg:  'image/jpeg',
+      jpeg: 'image/jpeg',
       png:  'image/png',
       doc:  'application/msword',
       docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -133,6 +138,7 @@ router.patch('/complete/:jobId', requireOwner, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
+    console.error('Complete job error:', err.message);
     res.status(500).json({ error: 'Failed to complete job' });
   }
 });

@@ -1,17 +1,10 @@
 const express  = require('express');
 const passport = require('passport');
-const os       = require('os');
 const router   = express.Router();
 
-// Detect local IP (same logic as index.js)
-function getLocalIP() {
-  for (const iface of Object.values(os.networkInterfaces())) {
-    for (const net of iface) {
-      if (net.family === 'IPv4' && !net.internal) return net.address;
-    }
-  }
-  return 'localhost';
-}
+// APP_URL is your Render domain e.g. https://printdrop.onrender.com
+// Falls back to localhost for local dev
+const APP_URL = process.env.APP_URL || 'http://localhost:5000';
 
 // ── Step 1: Send user to Google login ─────────────────────
 router.get('/google',
@@ -21,21 +14,14 @@ router.get('/google',
 // ── Step 2: Google redirects back here ────────────────────
 router.get('/google/callback',
   passport.authenticate('google', {
-    failureRedirect: 'http://localhost:5173/login?error=auth_failed'
+    failureRedirect: `${APP_URL}/login?error=auth_failed`
   }),
   (req, res) => {
-    // Detect if request came from mobile (IP) or laptop (localhost)
-    const host      = req.headers.host || ''
-    const isLocalhost = host.startsWith('localhost')
-    const baseURL   = isLocalhost
-      ? 'http://localhost:5173'
-      : `http://${getLocalIP()}:5173`
-
     // Owner → dashboard, everyone else → upload page
     if (req.user.isOwner) {
-      res.redirect(`${baseURL}/owner`)
+      res.redirect(`${APP_URL}/owner`);
     } else {
-      res.redirect(`${baseURL}/upload`)
+      res.redirect(`${APP_URL}/upload`);
     }
   }
 );

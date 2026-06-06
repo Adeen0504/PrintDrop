@@ -1,7 +1,7 @@
-const passport      = require('passport');
+const passport       = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const { v4: uuidv4 } = require('uuid');
-const db            = require('../db/database');
+const db             = require('../db/database');
 
 passport.use(new GoogleStrategy(
   {
@@ -44,7 +44,7 @@ passport.serializeUser((user, done) => {
 passport.deserializeUser(async (googleId, done) => {
   try {
     const user = await db.users.findOne({ googleId });
-    done(null, user);
+    done(null, user || false);
   } catch (err) {
     done(err, null);
   }

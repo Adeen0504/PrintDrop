@@ -67,9 +67,9 @@ router.post('/', requireAuth, upload.single('file'), async (req, res) => {
     const numCopies = Math.min(Math.max(parseInt(copies) || 1, 1), 50);
 
     // Encrypt file and store as <jobId>.enc
-    const jobId            = uuidv4();
+    const jobId             = uuidv4();
     const encryptedFilename = `${jobId}.enc`;
-    const encryptedPath    = path.join(__dirname, '../uploads', encryptedFilename);
+    const encryptedPath     = path.join(__dirname, '../uploads', encryptedFilename);
 
     encryptAndSave(req.file.path, encryptedPath);
 
@@ -91,9 +91,10 @@ router.post('/', requireAuth, upload.single('file'), async (req, res) => {
 
     await db.jobs.insert(job);
 
-    // Tell user their queue position
-    const pending  = await db.jobs.find({ status: 'pending' }).sort({ uploadedAt: 1 });
-    const position = pending.findIndex(j => j.jobId === jobId) + 1;
+    // Tell user their queue position — fetch and sort in JS (nedb-promises safe)
+    const allPending = await db.jobs.find({ status: 'pending' });
+    const pending    = allPending.sort((a, b) => new Date(a.uploadedAt) - new Date(b.uploadedAt));
+    const position   = pending.findIndex(j => j.jobId === jobId) + 1;
 
     res.json({ success: true, jobId, position, message: 'Document added to queue.' });
 
@@ -114,8 +115,10 @@ router.get('/status/:jobId', requireAuth, async (req, res) => {
     });
     if (!job) return res.status(404).json({ error: 'Job not found' });
 
-    const pending  = await db.jobs.find({ status: 'pending' }).sort({ uploadedAt: 1 });
-    const position = job.status === 'pending'
+    // Sort in JS (nedb-promises safe)
+    const allPending = await db.jobs.find({ status: 'pending' });
+    const pending    = allPending.sort((a, b) => new Date(a.uploadedAt) - new Date(b.uploadedAt));
+    const position   = job.status === 'pending'
       ? pending.findIndex(j => j.jobId === job.jobId) + 1
       : null;
 
@@ -128,6 +131,7 @@ router.get('/status/:jobId', requireAuth, async (req, res) => {
       position
     });
   } catch (err) {
+    console.error('Status error:', err.message);
     res.status(500).json({ error: 'Failed to get status' });
   }
 });
@@ -135,7 +139,10 @@ router.get('/status/:jobId', requireAuth, async (req, res) => {
 // ── GET /api/upload/my-jobs — all jobs for logged-in user ─
 router.get('/my-jobs', requireAuth, async (req, res) => {
   try {
-    const jobs = await db.jobs.find({ userId: req.user.googleId }).sort({ uploadedAt: -1 });
+    // Fetch then sort in JS (nedb-promises safe)
+    const allJobs = await db.jobs.find({ userId: req.user.googleId });
+    const jobs    = allJobs.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+
     res.json(jobs.map(j => ({
       jobId:        j.jobId,
       originalName: j.originalName,
@@ -145,6 +152,7 @@ router.get('/my-jobs', requireAuth, async (req, res) => {
       completedAt:  j.completedAt
     })));
   } catch (err) {
+    console.error('My-jobs error:', err.message);
     res.status(500).json({ error: 'Failed to fetch jobs' });
   }
 });

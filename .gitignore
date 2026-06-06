@@ -4,20 +4,26 @@ server/node_modules/
 client/node_modules/
 
 # Environment - NEVER commit, contains secrets
+.env
 server/.env
 
 # Database files - contain user data
 server/data/*.db
+data/*.db
 
 # Uploaded encrypted files
 server/uploads/*.enc
 server/uploads/temp_*
+uploads/*.enc
+uploads/temp_*
 
 # Build output
 client/dist/
+dist/
 
 # Logs
 *.log
+npm-debug.log*
 
 # OS
 .DS_Store
