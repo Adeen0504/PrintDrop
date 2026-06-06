@@ -25,6 +25,7 @@ const uploadRoutes = require('./routes/upload');
 const queueRoutes  = require('./routes/queue');
 
 const app     = express();
+app.set('trust proxy', 1);
 const PORT    = process.env.PORT || 5000;
 // The live Render URL — set this in your Render env vars
 const APP_URL = process.env.APP_URL || 'http://localhost:5000';
